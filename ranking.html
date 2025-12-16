@@ -546,6 +546,63 @@
             }
         }
 
+        /* Raw Text Modal */
+        .raw-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .raw-modal {
+            background: var(--card-bg);
+            border: var(--glass-border);
+            border-radius: 1rem;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .raw-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .raw-modal-header h2 {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .raw-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .raw-modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
 
@@ -645,12 +702,12 @@
             </header>
             <div class="controls">
                 <a href="recommender.html" class="nav-btn" title="推荐人业绩" style="text-decoration: none;">👤</a>
-                <button class="nav-btn" onclick="exportData()" title="Export to Excel"
-                    style="font-size: 1.1rem; padding: 0.35rem 0.6rem;">📥</button>
-                <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 4px;"></div>
-                <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+                <button class="nav-btn" onclick="showRawText()" title="查看原文">📝</button>
+                <button class="nav-btn" onclick="exportData()" title="Export to Excel">📥</button>
+
+                <button class="nav-btn" onclick="toggleTheme()" title="Toggle theme">🌓</button>
                 <button class="nav-btn" id="prevBtn" onclick="navigate(-1)" title="Previous week">❮</button>
-                <span class="week-display" id="weekDisplay">2024 W50</span>
+                <span class="week-display" id="weekDisplay">25 W50</span>
                 <button class="nav-btn" id="nextBtn" onclick="navigate(1)" title="Next week">❯</button>
             </div>
         </div>
@@ -675,6 +732,19 @@
 
         <div class="footer">
             <p>Data provided by Nebula Investment System</p>
+        </div>
+    </div>
+
+    <!-- Raw Text Modal -->
+    <div id="rawTextModal" class="raw-modal-overlay" onclick="closeRawModal(event)">
+        <div class="raw-modal" onclick="event.stopPropagation()">
+            <div class="raw-modal-header">
+                <h2 id="rawModalTitle">📝 原始推荐正文</h2>
+                <button class="raw-modal-close" onclick="closeRawModal()">&times;</button>
+            </div>
+            <div class="raw-modal-body" id="rawModalBody">
+                Loading...
+            </div>
         </div>
     </div>
 
@@ -730,6 +800,24 @@
             return num > 0 ? 'up' : 'down'; // CN Market: Red = Up
         }
 
+        // Raw Text Modal
+        let globalRawText = '';
+
+        function showRawText() {
+            const modal = document.getElementById('rawTextModal');
+            const body = document.getElementById('rawModalBody');
+            const title = document.getElementById('rawModalTitle');
+
+            title.textContent = `📝 ${currentYear}年第${currentWeek}周 原始推荐`;
+            body.textContent = globalRawText || '暂无原始正文数据';
+            modal.style.display = 'flex';
+        }
+
+        function closeRawModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('rawTextModal').style.display = 'none';
+        }
+
         // Theme toggle
         function toggleTheme() {
             const html = document.documentElement;
@@ -778,7 +866,7 @@
         // Update display
         function updateDisplay() {
             const dateRange = getWeekDateRange(currentYear, currentWeek);
-            document.getElementById('weekDisplay').textContent = `${currentYear}年${currentWeek}周 (${dateRange})`;
+            document.getElementById('weekDisplay').textContent = `${currentYear}年${currentWeek}周 ${dateRange}`;
             // Disable next if at current week
             document.getElementById('nextBtn').disabled =
                 (currentYear === maxYear && currentWeek >= maxWeek);
@@ -874,6 +962,7 @@
                 // 保存推荐人原始消息映射
                 const recommenderMessages = result.data.recommender_messages || {};
                 globalStocks = stocks; // Update global store
+                globalRawText = result.data.raw_text || ''; // 保存原始正文
                 renderData(stocks, result.data.week_start, result.data.week_end, recommenderMessages);
 
                 // Update subtitle with date range
