@@ -250,6 +250,74 @@
             color: #fff;
         }
 
+        /* Password Modal */
+        .password-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .password-modal {
+            background: var(--card-bg);
+            border: var(--glass-border);
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 320px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .password-modal h2 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .password-modal input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--text-secondary);
+            border-radius: 0.5rem;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .password-modal input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .password-modal button {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--accent-gradient);
+            border: none;
+            border-radius: 0.5rem;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .password-modal button:hover {
+            opacity: 0.9;
+        }
+
+        .password-error {
+            color: #ef4444;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
         .name {
             font-weight: 600;
             color: #60a5fa;
@@ -491,7 +559,44 @@
         </div>
     </div>
 
+    <!-- Password Modal -->
+    <div id="passwordOverlay" class="password-overlay" style="display: none;">
+        <div class="password-modal">
+            <h2>🔐 请输入访问密码</h2>
+            <input type="password" id="passwordInput" placeholder="密码"
+                onkeypress="if(event.key==='Enter')verifyPassword()">
+            <button onclick="verifyPassword()">确认</button>
+            <div id="passwordError" class="password-error" style="display: none;">密码错误</div>
+        </div>
+    </div>
+
     <script>
+        // Password Protection
+        const ENCRYPTED_PWD = 'bmVidWxh';
+        const AUTH_KEY = 'nebula_recommender_auth';
+
+        function checkAuth() {
+            const auth = localStorage.getItem(AUTH_KEY);
+            if (auth === 'verified') {
+                return true;
+            }
+            document.getElementById('passwordOverlay').style.display = 'flex';
+            return false;
+        }
+
+        function verifyPassword() {
+            const input = document.getElementById('passwordInput').value;
+            const encoded = btoa(input);
+            if (encoded === ENCRYPTED_PWD) {
+                localStorage.setItem(AUTH_KEY, 'verified');
+                document.getElementById('passwordOverlay').style.display = 'none';
+                fetchData();
+            } else {
+                document.getElementById('passwordError').style.display = 'block';
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
         // Theme
         function toggleTheme() {
             const html = document.documentElement;
@@ -711,7 +816,9 @@
         }
 
         // Init
-        fetchData();
+        if (checkAuth()) {
+            fetchData();
+        }
     </script>
 </body>
 
