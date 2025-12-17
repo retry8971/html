@@ -466,6 +466,73 @@
             font-size: 0.8rem;
         }
 
+        .detail-row .time-link {
+            color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .detail-row .time-link:hover {
+            color: var(--accent-color);
+            opacity: 0.7;
+        }
+
+        /* Custom Tooltip */
+        .custom-tooltip {
+            position: fixed;
+            background: rgba(30, 41, 59, 0.98);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            max-width: min(90vw, 320px);
+            z-index: 10001;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            line-height: 1.5;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+            pointer-events: auto;
+        }
+
+        [data-theme="light"] .custom-tooltip {
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .custom-tooltip.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .tooltip-header {
+            font-weight: 600;
+            font-size: 0.75rem;
+            padding-bottom: 0.4rem;
+            margin-bottom: 0.4rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+        }
+
+        .tooltip-header::before {
+            content: '💬 ';
+        }
+
+        [data-theme="light"] .tooltip-header {
+            color: #64748b;
+            border-bottom-color: rgba(100, 116, 139, 0.15);
+        }
+
+        .tooltip-content {
+            color: #e2e8f0;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+        }
+
+        [data-theme="light"] .tooltip-content {
+            color: #334155;
+        }
+
         .footer {
             margin-top: 2rem;
             text-align: center;
@@ -566,6 +633,9 @@
             <div class="modal-body" id="modalBody"></div>
         </div>
     </div>
+
+    <!-- Custom Tooltip -->
+    <div id="customTooltip" class="custom-tooltip"></div>
 
     <!-- Password Modal -->
     <div id="passwordOverlay" class="password-overlay" style="display: none;">
@@ -728,10 +798,14 @@
             if (currentTab === 'stocks') {
                 const details = recommender.details || [];
                 contentHtml = `<div class="detail-row header"><div>时间</div><div>股票</div><div>涨跌幅</div></div>`;
+                let lastWeekKey = '';
                 details.forEach(d => {
+                    const weekKey = `${d.year}-${d.week}`;
+                    const showTime = weekKey !== lastWeekKey;
+                    lastWeekKey = weekKey;
                     contentHtml += `
                         <div class="detail-row">
-                            <div>${d.year}年 第${d.week}周</div>
+                            <div class="${showTime ? 'time-link' : ''}" ${showTime ? `data-year="${d.year}" data-week="${d.week}" data-name="${recommender.name}"` : ''}>${showTime ? `${d.year}年 第${d.week}周` : ''}</div>
                             <div>${d.stock_name}</div>
                             <div class="${getChangeClass(d.change_pct)}">${formatPercent(d.change_pct)}</div>
                         </div>
@@ -743,7 +817,7 @@
                 weekly.forEach(w => {
                     contentHtml += `
                         <div class="detail-row">
-                            <div>${w.year}年 第${w.week}周</div>
+                            <div class="time-link" data-year="${w.year}" data-week="${w.week}" data-name="${recommender.name}">${w.year}年 第${w.week}周</div>
                             <div class="${getChangeClass(w.return)}">${formatPercent(w.return)}</div>
                             <div>${w.net_value.toFixed(4)}</div>
                         </div>
@@ -829,6 +903,107 @@
         if (checkAuth()) {
             fetchData();
         }
+
+        // Custom Tooltip handling
+        const customTooltip = document.getElementById('customTooltip');
+        let currentTimeLink = null;
+        const weekRawTextCache = {}; // 缓存已加载的原始正文
+
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        function positionTooltip(element) {
+            const rect = element.getBoundingClientRect();
+            if (isMobile()) {
+                customTooltip.style.top = '50%';
+                customTooltip.style.left = '50%';
+                customTooltip.style.transform = 'translate(-50%, -50%)';
+            } else {
+                const tooltipHeight = customTooltip.offsetHeight || 100;
+                let top = rect.top - tooltipHeight - 8;
+                let left = rect.left + rect.width / 2;
+                if (top < 10) top = rect.bottom + 8;
+                const tooltipWidth = customTooltip.offsetWidth || 320;
+                if (left - tooltipWidth / 2 < 10) left = tooltipWidth / 2 + 10;
+                else if (left + tooltipWidth / 2 > window.innerWidth - 10) left = window.innerWidth - tooltipWidth / 2 - 10;
+                customTooltip.style.top = `${top}px`;
+                customTooltip.style.left = `${left}px`;
+                customTooltip.style.transform = 'translateX(-50%)';
+            }
+        }
+
+        async function loadWeekRawText(year, week, recommenderName) {
+            const cacheKey = `${year}-${week}`;
+            let messages = weekRawTextCache[cacheKey];
+            if (!messages) {
+                try {
+                    const res = await fetch(`https://static.fee.red/api/investment/public/recommendation/${year}/${week}/ranking`);
+                    const data = await res.json();
+                    messages = data.data?.recommender_messages || {};
+                    weekRawTextCache[cacheKey] = messages;
+                } catch (e) {
+                    return '加载失败';
+                }
+            }
+            return messages[recommenderName] || '';
+        }
+
+        // 监听 modalBody 的点击事件
+        document.getElementById('modalBody').addEventListener('click', async (e) => {
+            const timeLink = e.target.closest('.time-link');
+            if (timeLink) {
+                e.stopPropagation();
+                const year = timeLink.dataset.year;
+                const week = timeLink.dataset.week;
+                const name = timeLink.dataset.name;
+
+                if (currentTimeLink === timeLink && customTooltip.classList.contains('visible')) {
+                    customTooltip.classList.remove('visible');
+                    currentTimeLink = null;
+                } else {
+                    // 显示loading
+                    customTooltip.innerHTML = `
+                        <div class="tooltip-header">${name} - ${year}年第${week}周</div>
+                        <div class="tooltip-content">Loading...</div>
+                    `;
+                    customTooltip.classList.add('visible');
+                    positionTooltip(timeLink);
+                    currentTimeLink = timeLink;
+
+                    // 加载推荐人原文
+                    const msg = await loadWeekRawText(year, week, name);
+                    if (msg) {
+                        customTooltip.innerHTML = `
+                            <div class="tooltip-header">${name} - ${year}年第${week}周</div>
+                            <div class="tooltip-content">${msg}</div>
+                        `;
+                    } else {
+                        customTooltip.innerHTML = `
+                            <div class="tooltip-header">${name} - ${year}年第${week}周</div>
+                            <div class="tooltip-content">暂无原文数据</div>
+                        `;
+                    }
+                    positionTooltip(timeLink);
+                }
+            }
+        });
+
+        // 点击其他区域关闭tooltip（包括modal内部）
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-tooltip') && !e.target.closest('.time-link')) {
+                customTooltip.classList.remove('visible');
+                currentTimeLink = null;
+            }
+        });
+
+        // modal内部点击也关闭tooltip（因为modal有stopPropagation）
+        document.querySelector('.modal').addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-tooltip') && !e.target.closest('.time-link')) {
+                customTooltip.classList.remove('visible');
+                currentTimeLink = null;
+            }
+        });
 
         // 阻止 iOS Safari 双指缩放
         document.addEventListener('gesturestart', (e) => e.preventDefault());
