@@ -251,6 +251,11 @@
             color: #fff;
         }
 
+        .rating-d {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
         /* Password Modal */
         .password-overlay {
             position: fixed;
@@ -592,6 +597,7 @@
             </header>
             <div class="controls">
                 <a href="ranking.html" class="nav-btn" title="返回排行榜">📈</a>
+                <button class="nav-btn" onclick="showAlgorithmInfo()" title="评分算法说明">ℹ️</button>
                 <button class="theme-btn" onclick="toggleTheme()" title="切换主题">🌓</button>
             </div>
         </div>
@@ -636,6 +642,72 @@
 
     <!-- Custom Tooltip -->
     <div id="customTooltip" class="custom-tooltip"></div>
+
+    <!-- Algorithm Info Modal -->
+    <div id="algoModal" class="modal-overlay" onclick="closeAlgoModal(event)">
+        <div class="modal" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📐 评分算法说明</h2>
+                <button class="modal-close" onclick="closeAlgoModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="font-size: 0.85rem; line-height: 1.6;">
+                <h3 style="margin-top:0; color: var(--accent-color);">综合评分构成</h3>
+                <table style="width:100%; border-collapse:collapse; margin-bottom:1rem;">
+                    <tr style="border-bottom:1px solid var(--border-color);">
+                        <th style="text-align:left; padding:0.4rem 0;">维度</th>
+                        <th style="text-align:right; padding:0.4rem 0;">权重</th>
+                        <th style="text-align:left; padding:0.4rem 0 0.4rem 1rem;">说明</th>
+                    </tr>
+                    <tr>
+                        <td>胜率</td>
+                        <td style="text-align:right">22%</td>
+                        <td style="padding-left:1rem">推荐股票盈利比例</td>
+                    </tr>
+                    <tr>
+                        <td>累计收益</td>
+                        <td style="text-align:right">23%</td>
+                        <td style="padding-left:1rem">净值累计增长率</td>
+                    </tr>
+                    <tr>
+                        <td>周均收益</td>
+                        <td style="text-align:right">15%</td>
+                        <td style="padding-left:1rem">每周平均收益率</td>
+                    </tr>
+                    <tr>
+                        <td>参与周数</td>
+                        <td style="text-align:right">10%</td>
+                        <td style="padding-left:1rem">活跃度，6周满分</td>
+                    </tr>
+                    <tr>
+                        <td>推荐数量</td>
+                        <td style="text-align:right">10%</td>
+                        <td style="padding-left:1rem">推荐量，15个满分</td>
+                    </tr>
+                    <tr>
+                        <td>正负周数</td>
+                        <td style="text-align:right">20%</td>
+                        <td style="padding-left:1rem">正收益周加分，负收益周扣分</td>
+                    </tr>
+                </table>
+
+                <h3 style="color: var(--accent-color);">数据置信度</h3>
+                <p style="margin:0.5rem 0;">周数不足时，分数向50分（中性）靠拢：</p>
+                <ul style="margin:0.3rem 0 1rem; padding-left:1.2rem;">
+                    <li>2周及以上：100%置信度</li>
+                    <li>1周：50%置信度（分数折半偏向50）</li>
+                </ul>
+
+                <h3 style="color: var(--accent-color);">等级划分</h3>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <span class="rating rating-s" style="padding:0.2rem 0.6rem;">S ≥78</span>
+                    <span class="rating rating-a" style="padding:0.2rem 0.6rem;">A ≥65</span>
+                    <span class="rating rating-b" style="padding:0.2rem 0.6rem;">B ≥45</span>
+                    <span class="rating rating-c" style="padding:0.2rem 0.6rem;">C ≥25</span>
+                    <span class="rating rating-d" style="padding:0.2rem 0.6rem;">D &lt;25</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Password Modal -->
     <div id="passwordOverlay" class="password-overlay" style="display: none;">
@@ -696,8 +768,17 @@
         let currentSort = { field: 'total_return', order: 'desc' };
 
         function getRatingClass(rating) {
-            const classes = { 'S': 'rating-s', 'A': 'rating-a', 'B': 'rating-b', 'C': 'rating-c' };
-            return classes[rating] || 'rating-c';
+            const classes = { 'S': 'rating-s', 'A': 'rating-a', 'B': 'rating-b', 'C': 'rating-c', 'D': 'rating-d' };
+            return classes[rating] || 'rating-d';
+        }
+
+        // Algorithm Info Modal
+        function showAlgorithmInfo() {
+            document.getElementById('algoModal').classList.add('visible');
+        }
+        function closeAlgoModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('algoModal').classList.remove('visible');
         }
 
         // Sorting
